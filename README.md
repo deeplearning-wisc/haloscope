@@ -3,6 +3,11 @@
 
 This is the source code accompanying the NeurIPS'24 spotlight [***HaloScope: Harnessing Unlabeled LLM Generations for Hallucination Detection***](https://arxiv.org/abs/2409.17504) by Xuefeng Du, Chaowei Xiao, and Yixuan Li
 
+## Ads 
+
+Checkout our ICML'23 work [SCONE](https://proceedings.mlr.press/v202/bai23a/bai23a.pdf), ICLR'24 work [SAL](https://openreview.net/forum?id=jlEjB8MVGa) and a recent [preprint](https://arxiv.org/abs/2410.00296v1) on leveraging unlabeled data for OOD detection and VLM harmful prompt detection and if you are interested!
+
+
 ## Requirements
 ```
 conda install -f env.yml
