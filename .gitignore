@@ -1,0 +1,10 @@
+.deps/
+__pycache__/
+*.py[cod]
+*.before_*
+*.npy
+*.npz
+*.pt
+logs/
+models/
+save_for_eval/

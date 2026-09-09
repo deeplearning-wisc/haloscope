@@ -13,7 +13,7 @@ import pickle
 import argparse
 import matplotlib.pyplot as plt
 from pprint import pprint
-from baukit import Trace, TraceDict
+from baukit_nethook import Trace, TraceDict
 from metric_utils import get_measures, print_measures
 import re
 from torch.autograd import Variable
@@ -162,7 +162,34 @@ def main():
         model = llama_iti.LlamaForCausalLM.from_pretrained(MODEL, low_cpu_mem_usage=True, torch_dtype=torch.float16,
                                                            device_map="auto").cuda()
 
+        answers_dir = f'./save_for_eval/{args.dataset_name}_hal_det/answers'
+        os.makedirs(answers_dir, exist_ok=True)
+
+        info = 'most_likely_' if args.most_likely else 'batch_generations_'
+        answer_prefix = (
+            info
+            + f'hal_det_{args.model_name}_{args.dataset_name}_answers_index_'
+        )
+
         begin_index = 0
+        while begin_index < len(dataset):
+            saved_path = os.path.join(
+                answers_dir,
+                f'{answer_prefix}{begin_index}.npy',
+            )
+            if not os.path.isfile(saved_path):
+                break
+
+            try:
+                saved_answers = np.load(saved_path, allow_pickle=True)
+                if len(saved_answers) != args.num_gene:
+                    break
+            except Exception:
+                break
+
+            begin_index += 1
+
+        print(f'Resuming generation from sample index {begin_index}')
         if args.dataset_name == 'tydiqa':
             end_index = len(used_indices)
         else:
@@ -403,13 +430,10 @@ def main():
         # get the split and label (true or false) of the unlabeled data and the test data.
         if args.use_rouge:
             gts = np.load(f'./ml_{args.dataset_name}_rouge_score.npy')
-            gts_bg = np.load(f'./bg_{args.dataset_name}_rouge_score.npy')
         else:
             gts = np.load(f'./ml_{args.dataset_name}_bleurt_score.npy')
-            gts_bg = np.load(f'./bg_{args.dataset_name}_bleurt_score.npy')
         thres = args.thres_gt
         gt_label = np.asarray(gts> thres, dtype=np.int32)
-        gt_label_bg = np.asarray(gts_bg > thres, dtype=np.int32)
 
 
         if args.dataset_name == 'tydiqa':
@@ -603,12 +627,43 @@ def main():
         print_measures(measures[0], measures[1], measures[2], 'direct-projection')
 
 
-        thresholds = np.linspace(0,1, num=40)[1:-1]
-        normalizer = lambda x: x / (np.linalg.norm(x, ord=2, axis=-1, keepdims=True) + 1e-10)
-        auroc_over_thres = []
-        best_layer_over_thres = []
+        thresholds = np.linspace(0, 1, num=40)[1:-1]
+        normalizer = lambda x: x / (
+            np.linalg.norm(x, ord=2, axis=-1, keepdims=True) + 1e-10
+        )
+
         from linear_probe import get_linear_acc
-        for thres_wild in thresholds:
+
+        search_checkpoint = (
+            f'./save_for_eval/{args.dataset_name}_hal_det/'
+            f'threshold_search_{args.model_name}.pt'
+        )
+
+        if os.path.isfile(search_checkpoint):
+            state = torch.load(
+                search_checkpoint,
+                map_location='cpu',
+                weights_only=False,
+            )
+            auroc_over_thres = state['aurocs']
+            best_layer_over_thres = state['layers']
+            torch.set_rng_state(state['torch_rng'])
+
+            if torch.cuda.is_available() and state['cuda_rng'] is not None:
+                torch.cuda.set_rng_state_all(state['cuda_rng'])
+
+            start_threshold_index = len(auroc_over_thres)
+            print(
+                f'Resuming threshold search at '
+                f'{start_threshold_index}/{len(thresholds)}'
+            )
+        else:
+            auroc_over_thres = []
+            best_layer_over_thres = []
+            start_threshold_index = 0
+
+        for threshold_index in range(start_threshold_index, len(thresholds)):
+            thres_wild = thresholds[threshold_index]
             best_auroc = 0
             for layer in range(len(embed_generated_wild[0])):
                 thres_wild_score = np.sort(best_scores)[int(len(best_scores) * thres_wild)]
@@ -663,7 +718,31 @@ def main():
 
             auroc_over_thres.append(best_auroc)
             best_layer_over_thres.append(best_layer)
-            print('thres: ', thres_wild, 'best result: ', best_result, 'best_layer: ', best_layer)
+
+            checkpoint_tmp = search_checkpoint + '.tmp'
+            torch.save(
+                {
+                    'aurocs': auroc_over_thres,
+                    'layers': best_layer_over_thres,
+                    'torch_rng': torch.get_rng_state(),
+                    'cuda_rng': (
+                        torch.cuda.get_rng_state_all()
+                        if torch.cuda.is_available()
+                        else None
+                    ),
+                },
+                checkpoint_tmp,
+            )
+            os.replace(checkpoint_tmp, search_checkpoint)
+
+            print(
+                'thres: ',
+                thres_wild,
+                'best result: ',
+                best_result,
+                'best_layer: ',
+                best_layer,
+            )
         argmax_index = max(range(len(auroc_over_thres)), key=auroc_over_thres.__getitem__)
         print("the best threshold calculated on the eval set is: ", thresholds[argmax_index], "best layer is: ", best_layer_over_thres[argmax_index])
 

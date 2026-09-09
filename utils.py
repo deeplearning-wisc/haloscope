@@ -14,16 +14,16 @@ import pandas as pd
 import warnings
 from einops import rearrange
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from baukit import Trace, TraceDict
+from baukit_nethook import Trace, TraceDict
 import sklearn
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from sklearn.linear_model import LogisticRegression
 import pickle
 from functools import partial
 
-from truthfulqa import utilities, models, metrics
+# Unused by HaloScope Llama: from truthfulqa import utilities, models, metrics
 import openai
-from truthfulqa.configs import BEST_COL, ANSWER_COL, INCORRECT_COL
+# Unused by HaloScope Llama: from truthfulqa.configs import BEST_COL, ANSWER_COL, INCORRECT_COL
 import copy
 
 ENGINE_MAP = {
@@ -35,16 +35,16 @@ ENGINE_MAP = {
     'llama2_chat_70B': 'meta-llama/Llama-2-70b-chat-hf', 
 }
 
-from truthfulqa.utilities import (
-    format_prompt,
-    format_prompt_with_answer_strings,
-    split_multi_answer,
-    format_best,
-    find_start,
-)
-from truthfulqa.presets import preset_map, COMPARE_PRIMER
-from truthfulqa.models import find_subsequence, set_columns, MC_calcs
-from truthfulqa.evaluate import format_frame, data_to_dict
+# Unused by HaloScope Llama: from truthfulqa.utilities import (
+# Unused by HaloScope Llama:     format_prompt,
+# Unused by HaloScope Llama:     format_prompt_with_answer_strings,
+# Unused by HaloScope Llama:     split_multi_answer,
+# Unused by HaloScope Llama:     format_best,
+# Unused by HaloScope Llama:     find_start,
+# Unused by HaloScope Llama: )
+# Unused by HaloScope Llama: from truthfulqa.presets import preset_map, COMPARE_PRIMER
+# Unused by HaloScope Llama: from truthfulqa.models import find_subsequence, set_columns, MC_calcs
+# Unused by HaloScope Llama: from truthfulqa.evaluate import format_frame, data_to_dict
 
 
 ############# CCS #############
