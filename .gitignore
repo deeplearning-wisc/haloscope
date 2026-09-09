@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 *.before_*
+official-environment-changes.patch
+haloscope-*-bundle.tar.gz
 *.npy
 *.npz
 *.pt
